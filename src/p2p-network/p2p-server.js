@@ -172,19 +172,14 @@ class P2PServer {
 
   /* ----------------------------- Broadcasting ----------------------------- */
 
-  broadcastNewPeer(peer, callback) {
-    this.sockets.forEach(x => {
-      if (x.socket.readyState === ws.OPEN) {
-        this.send_NEW_PEER(x.socket, peer);
-      }
-    });
-    callback();
-  }
+  broadcastPeer(type, peer, callback) {
+    /*
+    type: NEW or RECONNECTED;
 
-  broadcastReconnectedPeer(peer, callback) {
+    */
     this.sockets.forEach(x => {
       if (x.socket.readyState === ws.OPEN) {
-        this.send_RECONNECTED_PEER(x.socket, peer);
+        this.send_PEER(type, x.socket, peer);
       }
     });
     callback();
@@ -258,25 +253,13 @@ class P2PServer {
     );
   }
 
-  send_NEW_PEER(socket, peer) {
+  send_PEER(type, socket, peer) {
     /*
-    type: NEW_PEER
+    type: NEW or RECONNECTED
     */
     socket.send(
       JSON.stringify({
-        type: "NEW_PEER",
-        peer: peer
-      })
-    );
-  }
-
-  send_RECONNECTED_PEER(socket, peer) {
-    /*
-    type: RECONNECTED_PEER
-    */
-    socket.send(
-      JSON.stringify({
-        type: "RECONNECTED_PEER",
+        type: type,
         peer: peer
       })
     );
@@ -358,7 +341,8 @@ class P2PServer {
                 this.send_PEERS_DATABASE(socket);
 
                 // Broadcast re-connected peer to the network
-                this.broadcastReconnectedPeer(
+                this.broadcastPeer(
+                  "RECONNECTED",
                   {
                     UUID: data.remote_UUID,
                     URL: data.remoteURL
@@ -395,7 +379,8 @@ class P2PServer {
                     this.send_PEERS_DATABASE(socket);
 
                     // Broadcast newly-registered peer to the network
-                    this.broadcastNewPeer(
+                    this.broadcastPeer(
+                      "NEW",
                       {
                         UUID: data.remote_UUID,
                         URL: data.remoteURL
@@ -452,7 +437,7 @@ class P2PServer {
           });
           break;
 
-        case "NEW_PEER":
+        case "NEW":
           /* Indicates broadcasting of newly-registered peer */
 
           // Store new peer to the database
@@ -475,7 +460,7 @@ class P2PServer {
           });
           break;
 
-        case "RECONNECTED_PEER":
+        case "RECONNECTED":
           /* Indicates broadcasting of re-connected peer */
 
           // Establish websocket to newly-connected peer
