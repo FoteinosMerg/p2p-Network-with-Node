@@ -120,7 +120,7 @@ class P2PServer {
                     socket: socket
                   });
                   this.messageHandler(socket);
-                  this.send_TARGET_CONNECTION(socket);
+                  this.send_CONNECTION(socket);
                 });
               }
             });
@@ -419,6 +419,16 @@ class P2PServer {
           });
           break;
 
+        case "CONNECTION":
+          /* Indicates re-connection of already registered node without target */
+          console.log("\n * Registered node re-connected to network");
+          this.send_PEERS_DATABASE(socket);
+          this.sockets.push({
+            UUID: data.remote_UUID,
+            socket: socket
+          });
+          break;
+
         case "PEERS_DATABASE":
           /*
           Indicates response of target-peer
@@ -482,7 +492,7 @@ class P2PServer {
           /* Indicates websocket from indirectly notified node */
 
           console.log(
-            `\n * Connection admitted form peer ${data.remoteURL}\n\n   node: ${
+            `\n * Connection admitted from peer ${data.remoteURL}\n\n   node: ${
               data.remote_UUID
             }`
           );
