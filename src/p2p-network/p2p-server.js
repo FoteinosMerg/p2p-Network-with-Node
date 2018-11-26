@@ -30,10 +30,12 @@ class P2PServer {
     this.sentMessages = [];
   }
 
-  /* ------------------------------ Connection ------------------------------ */
+  /* ---------------------- Connection functionalitites --------------------- */
 
   listen() {
-    // Launch websocket-server
+    /*
+    Launch websocket server, bind to the configured ws URL and enter the network
+    */
     this.server = new ws.Server(
       { ADDRESS: ADDRESS, port: P2P_PORT, clientTracking: true },
       () => {
@@ -62,7 +64,7 @@ class P2PServer {
             this.sockets.push({ UUID: target_UUID, socket: socket });
 
             // Inform target about connection
-            this.send_TARGET_CONNECTION(socket);
+            this.send_CONNECTION("TARGET", socket);
 
             // Print outcoming connection message
             console.log(
@@ -107,6 +109,9 @@ class P2PServer {
   }
 
   connect_to_online_peers() {
+    /*
+    Used when loading the network from local database (without target peer)
+    */
     this.loadPeersDatabase(() => {
       setTimeout(
         () =>
@@ -120,13 +125,25 @@ class P2PServer {
                     socket: socket
                   });
                   this.messageHandler(socket);
-                  this.send_CONNECTION(socket);
+                  this.send_CONNECTION("NO_TARGET", socket);
                 });
               }
             });
           }),
         1000
       );
+    });
+  }
+
+  connect_to_broadcasted_peer(peer) {
+    /*
+    Throws socket to newly-connected peer (both newly-registered or re-connected)
+    */
+    const _socket = new ws(peer.URL);
+    _socket.on("open", () => {
+      this.messageHandler(_socket);
+      this.sockets.push({ UUID: peer.UUID, socket: _socket });
+      this.send_CONNECTION("ADMITTANCE", _socket);
     });
   }
 
@@ -175,7 +192,6 @@ class P2PServer {
   broadcastPeer(type, peer, callback) {
     /*
     type: NEW or RECONNECTED;
-
     */
     this.sockets.forEach(x => {
       if (x.socket.readyState === ws.OPEN) {
@@ -185,7 +201,7 @@ class P2PServer {
     callback();
   }
 
-  /* --------------------- Open sockets functionalities --------------------- */
+  /* ------------------------ Currently online peers ------------------------ */
 
   getOnlinePeers() {
     // Store self as online
@@ -194,9 +210,8 @@ class P2PServer {
     // Filter out online peers according to whether their socket is open
     this.peers.forEach(peer => {
       const socket = this.sockets.find(
-        x =>
-          //x.UUID !== this.UUID && // Avoid potential socket to self
-          x.UUID === peer.UUID && x.socket.readyState == ws.OPEN // Avoid potentially closed sockets from previous connectiosn
+        // Ensure to avoid potentially closed sockets from previous connections
+        x => x.UUID === peer.UUID && x.socket.readyState == ws.OPEN
       );
       if (socket) onlinePeers.push(peer);
     });
@@ -205,9 +220,9 @@ class P2PServer {
 
   /* ------------------------ Socket message actions ------------------------ */
 
-  send_TARGET_CONNECTION(socket) {
+  send_CONNECTION(type, socket) {
     /*
-    type: TARGET_CONNECTION
+    type: TARGET or NO_TARGET or ADMITTANCE
 
     Used to ensure that URL info is made known to the recipient during websocket
     connection (normally retrieved from the remoteAddress and remotePort fields
@@ -216,27 +231,9 @@ class P2PServer {
     */
     socket.send(
       JSON.stringify({
-        type: "TARGET_CONNECTION",
+        type: type,
         remote_UUID: this.UUID,
-        remoteURL: this.URL
-      })
-    );
-  }
-
-  send_CONNECTION(socket) {
-    /*
-    type: CONNECTION
-
-    Used to ensure that URL info is made known to the recipient during websocket
-    connection (normally retrieved from the remoteAddress and remotePort fields
-    of the connection.req object coming with the `connection` event, but some-
-    times lost during connection)
-    */
-    socket.send(
-      JSON.stringify({
-        type: "CONNECTION",
-        remote_UUID: this.UUID,
-        remoteURL: this.URL
+        remote_URL: this.URL
       })
     );
   }
@@ -261,19 +258,6 @@ class P2PServer {
       JSON.stringify({
         type: type,
         peer: peer
-      })
-    );
-  }
-
-  send_ADMITTANCE(socket) {
-    /*
-    type: ADMITTANCE
-    */
-    socket.send(
-      JSON.stringify({
-        type: "ADMITTANCE",
-        remote_UUID: this.UUID,
-        remoteURL: this.URL
       })
     );
   }
@@ -325,10 +309,10 @@ class P2PServer {
       const data = JSON.parse(json_data);
 
       switch (data.type) {
-        case "TARGET_CONNECTION":
+        case "TARGET":
           /* Indicates incoming websocket-connection form newly-connected node */
           console.log(
-            `\n * New websocket from ${data.remoteURL}\n\n   node: ${
+            `\n * New websocket from ${data.remote_URL}\n\n   node: ${
               data.remote_UUID
             }`
           );
@@ -345,7 +329,7 @@ class P2PServer {
                   "RECONNECTED",
                   {
                     UUID: data.remote_UUID,
-                    URL: data.remoteURL
+                    URL: data.remote_URL
                   },
                   () => {
                     console.log("\n * Connection broadcasted");
@@ -365,13 +349,13 @@ class P2PServer {
                   [
                     {
                       UUID: data.remote_UUID,
-                      URL: data.remoteURL
+                      URL: data.remote_URL
                     }
                   ],
                   () => {
                     console.log(
                       `\n * New peer ${
-                        data.remoteURL
+                        data.remote_URL
                       } has been registered\n\n   node: ${data.remote_UUID}`
                     );
 
@@ -383,7 +367,7 @@ class P2PServer {
                       "NEW",
                       {
                         UUID: data.remote_UUID,
-                        URL: data.remoteURL
+                        URL: data.remote_URL
                       },
                       () => {
                         console.log("\n * Registration broadcasted");
@@ -404,7 +388,7 @@ class P2PServer {
           });
           break;
 
-        case "CONNECTION":
+        case "NO_TARGET":
           /* Indicates re-connection of already registered node without target */
           console.log("\n * Registered node re-connected to network");
           this.send_PEERS_DATABASE(socket);
@@ -449,37 +433,26 @@ class P2PServer {
             );
 
             // Establish websocket to newly-registered peer
-            ///*
-            const _socket = new ws(data.peer.URL);
-            _socket.on("open", () => {
-              this.messageHandler(_socket);
-              this.sockets.push({ UUID: data.peer.UUID, socket: _socket });
-              this.send_ADMITTANCE(_socket);
-            });
-            //*/
+            this.connect_to_broadcasted_peer(data.peer);
           });
           break;
 
         case "RECONNECTED":
           /* Indicates broadcasting of re-connected peer */
 
-          // Establish websocket to newly-connected peer
-          const _socket = new ws(data.peer.URL);
-          _socket.on("open", () => {
-            console.log("\n * Registered node re-connected to network");
-            this.messageHandler(_socket);
-            this.sockets.push({ UUID: data.peer.UUID, socket: _socket });
-            this.send_ADMITTANCE(_socket);
-          });
+          console.log("\n * Registered node re-connected to network");
+
+          // Establish websocket to re-connected peer
+          this.connect_to_broadcasted_peer(data.peer);
           break;
 
         case "ADMITTANCE":
           /* Indicates websocket from indirectly notified node */
 
           console.log(
-            `\n * Connection admitted from peer ${data.remoteURL}\n\n   node: ${
-              data.remote_UUID
-            }`
+            `\n * Connection admitted from peer ${
+              data.remote_URL
+            }\n\n   node: ${data.remote_UUID}`
           );
           this.sockets.push({ UUID: data.remote_UUID, socket: socket });
           break;
