@@ -9,14 +9,22 @@ const { p2pServer } = require("..");
    @ description    Displays peers
    @ access         Public */
 router.get("/", (req, res) => {
-  res.json({ peers: p2pServer.peers });
+  p2pServer.loadPeersDatabase(() =>
+    setTimeout(() => {
+      res.json({ peers: p2pServer.peers });
+    }, 1000)
+  );
 });
 
 /* @ route          GET /peers/online
    @ description    Displays currently online peers
    @ access         Public */
 router.get("/online", (req, res) => {
-  res.json({ onlinePeers: p2pServer.getOnlinePeers() });
+  p2pServer.loadPeersDatabase(() =>
+    setTimeout(() => {
+      res.json({ onlinePeers: p2pServer.getOnlinePeers() });
+    }, 1000)
+  );
 });
 
 /* ------------------------------- Messenger -------------------------------- */

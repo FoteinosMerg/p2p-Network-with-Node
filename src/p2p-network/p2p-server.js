@@ -34,71 +34,76 @@ class P2PServer {
 
   listen() {
     // Launch websocket-server
-    this.server = new ws.Server({ ADDRESS: ADDRESS, port: P2P_PORT }, () => {
-      console.log(
-        `\n * Listening for P2P connections on ${this.URL}\n\n   node: ${
-          this.UUID
-        }`
-      );
+    this.server = new ws.Server(
+      { ADDRESS: ADDRESS, port: P2P_PORT, clientTracking: true },
+      () => {
+        console.log(
+          `\n * Listening for P2P connections on ${this.URL}\n\n   node: ${
+            this.UUID
+          }`
+        );
 
-      if (TARGET_PEER) {
-        // Connect to existing p2p-network containing the target peer
+        if (TARGET_PEER) {
+          // Connect to existing p2p-network containing the target peer
 
-        const target_PEER =
-          "ws://" + TARGET_PEER.replace("localhost", "127.0.0.1");
+          const target_PEER =
+            "ws://" + TARGET_PEER.replace("localhost", "127.0.0.1");
 
-        // Retrieve the target's UUID
-        const target_UUID = uuid3(target_PEER, uuid3.URL);
+          // Retrieve the target's UUID
+          const target_UUID = uuid3(target_PEER, uuid3.URL);
 
-        // Establish websocket to target
-        const socket = new ws(target_PEER);
-        socket.on("open", () => {
-          this.sockets.push({ UUID: target_UUID, socket: socket });
+          // Establish websocket to target
+          const socket = new ws(target_PEER);
+          socket.on("open", () => {
+            // Annex handler for incoming messages from the target
+            this.messageHandler(socket);
 
-          // Annex handler for incoming messages from the target
-          this.messageHandler(socket);
+            // Store target socket
+            this.sockets.push({ UUID: target_UUID, socket: socket });
 
-          // Inform target about connection
-          this.send_TARGET_CONNECTION(socket);
+            // Inform target about connection
+            this.send_TARGET_CONNECTION(socket);
 
-          // Print outcoming connection message
-          console.log(
-            `\n * New websocket to peer ${TARGET_PEER}\n\n   node: ${target_UUID}`
-          );
-        });
-      } else {
-        // Check if a database dir exists for the node running this server
-        fs.stat(`./databases/${this.UUID}`, (err, stat) => {
-          if (err == null) {
-            // Corresponding db dir found; connect to online peers
-            console.log(`\n * Existing P2P-network detected`);
-
-            this.connect_to_online_peers();
-          } else if (err.code === "ENOENT") {
-            // Corresponding db dir not found; launch new network by creating one
-
-            this.createPeersDatabase(
-              [
-                {
-                  UUID: this.UUID,
-                  URL: this.URL
-                }
-              ],
-              () => {
-                this.loadPeersDatabase(() =>
-                  console.log(`\n * New P2P-network launched`)
-                );
-              }
+            // Print outcoming connection message
+            console.log(
+              `\n * New websocket to peer ${TARGET_PEER}\n\n   node: ${target_UUID}`
             );
-          } else console.log(err.code);
-        });
-      }
+          });
+        } else {
+          // Check if a database dir exists for the node running this server
+          fs.stat(`./databases/${this.UUID}`, (err, stat) => {
+            if (err == null) {
+              // Corresponding db dir found; connect to online peers
+              console.log(`\n * Existing P2P-network detected`);
 
-      // Annex message handler for each incoming websocket connection
-      this.server.on("connection", (socket, req) =>
-        this.messageHandler(socket)
-      );
-    });
+              this.connect_to_online_peers();
+            } else if (err.code === "ENOENT") {
+              // Corresponding db dir not found; launch new network by creating one
+
+              this.createPeersDatabase(
+                [
+                  {
+                    UUID: this.UUID,
+                    URL: this.URL
+                  }
+                ],
+                () => {
+                  this.loadPeersDatabase(() => {
+                    console.log("\n * Peers database successfully created");
+                    console.log(`\n * New P2P-network launched`);
+                  });
+                }
+              );
+            } else console.log(err.code);
+          });
+        }
+
+        // Annex message handler for each incoming websocket connection
+        this.server.on("connection", (socket, req) =>
+          this.messageHandler(socket)
+        );
+      }
+    );
   }
 
   connect_to_online_peers() {
@@ -192,17 +197,21 @@ class P2PServer {
     const onlinePeers = [{ UUID: this.UUID, URL: this.URL }];
 
     // Filter out online peers according to whether their socket is open
+    ///*
     this.peers.forEach(peer => {
       const socket = this.findsocket_by_URL(peer.URL);
-      if (socket && socket.readyState === ws.OPEN) {
-        onlinePeers.push(peer);
-      } else console.log(peer);
-    });
-    return onlinePeers;
-  }
+      if (socket) {
+        console.log();
+        console.log(peer);
+        console.log();
+        console.log(socket.socket.readyState == ws.OPEN);
+      }
 
-  getOpenSockets() {
-    return this.sockets.filter(x => x.socket.readyState == ws.OPEN);
+      if (socket && socket.socket.readyState === ws.OPEN)
+        onlinePeers.push(peer);
+    });
+    //*/
+    return onlinePeers;
   }
 
   findsocket_by_URL(URL) {
@@ -332,13 +341,12 @@ class P2PServer {
     } else return "NON_EXISTENT";
   }
 
-  /* ------------------------ Socket message handler ------------------------ */
+  /* ------------------------ Socket-message handler ------------------------ */
 
   messageHandler(socket) {
     /* Handles incoming messages sent by the given socket according to type */
 
     socket.on("message", json_data => {
-      const _sorcket = socket;
       const data = JSON.parse(json_data);
 
       switch (data.type) {
@@ -353,18 +361,14 @@ class P2PServer {
           this.loadPeersDatabase(() => {
             setTimeout(() => {
               if (this.peers.some(peer => peer.UUID === data.remote_UUID)) {
+                console.log();
+                console.log(socket.readyState === ws.OPEN);
+                console.log();
                 // Newly-connected node is a registered peer; update its database
                 console.log("\n * Registered node re-connected to network");
                 this.send_PEERS_DATABASE(socket);
 
-                // Store socket from newly connected node
-                this.sockets.push({
-                  UUID: data.remote_UUID,
-                  socket: socket
-                });
-
                 // Broadcast re-connected peer to the network
-                ///*
                 this.broadcastReconnectedPeer(
                   {
                     UUID: data.remote_UUID,
@@ -381,7 +385,6 @@ class P2PServer {
                     });
                   }
                 );
-                //*/
               } else {
                 // Register newly-connected node to database
                 console.log("\n * Non-registered node connected to network");
@@ -399,10 +402,10 @@ class P2PServer {
                       } has been registered\n\n   node: ${data.remote_UUID}`
                     );
 
-                    // Send database to newly registered peer
+                    // Send database to newly-registered peer
                     this.send_PEERS_DATABASE(socket);
 
-                    // Broadcast newly registered peer to the network
+                    // Broadcast newly-registered peer to the network
                     this.broadcastNewPeer(
                       {
                         UUID: data.remote_UUID,
@@ -467,7 +470,7 @@ class P2PServer {
             _socket.on("open", () => {
               this.messageHandler(_socket);
               this.sockets.push({ UUID: data.peer.UUID, socket: _socket });
-              this.send_ADMITTANCE(_socket);
+              //this.send_ADMITTANCE(_socket);
             });
             //*/
           });
@@ -482,7 +485,7 @@ class P2PServer {
             console.log("\n * Registered node re-connected to network");
             this.messageHandler(_socket);
             this.sockets.push({ UUID: data.peer.UUID, socket: _socket });
-            this.send_ADMITTANCE(_socket);
+            //this.send_ADMITTANCE(_socket);
           });
           break;
 

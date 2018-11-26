@@ -35,7 +35,7 @@ function checkActivity(URL, callback) {
   // Testing-server configuration
   const server = net.createServer();
   server.once("error", err => {
-    if (err.code === "EADDRINUSE") callback(URL); //, true);
+    if (err.code === "EADDRINUSE") callback(URL);
   });
   server.once("listening", () => {
     server.close();
