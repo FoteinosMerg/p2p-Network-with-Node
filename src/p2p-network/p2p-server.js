@@ -98,7 +98,7 @@ class P2PServer {
           });
         }
 
-        // Annex message handler for each incoming websocket connection
+        // For each incoming websocket in future, annex message handler
         this.server.on("connection", (socket, req) =>
           this.messageHandler(socket)
         );
@@ -197,25 +197,15 @@ class P2PServer {
     const onlinePeers = [{ UUID: this.UUID, URL: this.URL }];
 
     // Filter out online peers according to whether their socket is open
-    ///*
     this.peers.forEach(peer => {
-      const socket = this.findsocket_by_URL(peer.URL);
-      if (socket) {
-        console.log();
-        console.log(peer);
-        console.log();
-        console.log(socket.socket.readyState == ws.OPEN);
-      }
-
-      if (socket && socket.socket.readyState === ws.OPEN)
-        onlinePeers.push(peer);
+      const socket = this.sockets.find(
+        x =>
+          //x.UUID !== this.UUID && // Avoid potential socket to self
+          x.UUID === peer.UUID && x.socket.readyState == ws.OPEN // Avoid potentially closed sockets from previous connectiosn
+      );
+      if (socket) onlinePeers.push(peer);
     });
-    //*/
     return onlinePeers;
-  }
-
-  findsocket_by_URL(URL) {
-    return this.sockets.find(x => x.UUID == uuid3(URL, uuid3.URL));
   }
 
   /* ------------------------ Socket message actions ------------------------ */
@@ -298,7 +288,9 @@ class P2PServer {
     */
     socket.send(
       JSON.stringify({
-        type: "ADMITTANCE"
+        type: "ADMITTANCE",
+        remote_UUID: this.UUID,
+        remoteURL: this.URL
       })
     );
   }
@@ -361,9 +353,6 @@ class P2PServer {
           this.loadPeersDatabase(() => {
             setTimeout(() => {
               if (this.peers.some(peer => peer.UUID === data.remote_UUID)) {
-                console.log();
-                console.log(socket.readyState === ws.OPEN);
-                console.log();
                 // Newly-connected node is a registered peer; update its database
                 console.log("\n * Registered node re-connected to network");
                 this.send_PEERS_DATABASE(socket);
@@ -416,7 +405,7 @@ class P2PServer {
                         // Socket from newly-registered node must be stored but now, so that it is not taken
                         // into account as open during the broadcasting (this could possibly lead the newly
                         // registered node's server to crash, since the corresponding database might not
-                        // have been meanwhile created)
+                        // ywt have been created)
                         this.sockets.push({
                           UUID: data.remote_UUID,
                           socket: socket
@@ -470,7 +459,7 @@ class P2PServer {
             _socket.on("open", () => {
               this.messageHandler(_socket);
               this.sockets.push({ UUID: data.peer.UUID, socket: _socket });
-              //this.send_ADMITTANCE(_socket);
+              this.send_ADMITTANCE(_socket);
             });
             //*/
           });
@@ -485,15 +474,19 @@ class P2PServer {
             console.log("\n * Registered node re-connected to network");
             this.messageHandler(_socket);
             this.sockets.push({ UUID: data.peer.UUID, socket: _socket });
-            //this.send_ADMITTANCE(_socket);
+            this.send_ADMITTANCE(_socket);
           });
           break;
 
         case "ADMITTANCE":
           /* Indicates websocket from indirectly notified node */
 
-          console.log("\n * ADMITTED");
-          /* Here somehow annex handler */
+          console.log(
+            `\n * Connection admitted form peer ${data.remoteURL}\n\n   node: ${
+              data.remote_UUID
+            }`
+          );
+          this.sockets.push({ UUID: data.remote_UUID, socket: socket });
           break;
 
         /* Indicates message reception from online peer (not to be confused
