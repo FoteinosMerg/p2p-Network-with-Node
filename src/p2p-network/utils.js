@@ -29,7 +29,7 @@ function extract_ADDRESS_and_PORT(URL) {
 
 function checkActivity(URL, callback) {
   /* Checks if the given URL is currently run by some remote server by ordering
-  a testing-server to listen to it. If yes, then handles applies callback to
+  a testing-server to try to listen to it. If yes, then applies callback to
   the given URL */
 
   // Testing-server configuration

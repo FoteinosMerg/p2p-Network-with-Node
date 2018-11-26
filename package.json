@@ -1,5 +1,5 @@
 {
-  "name": "p2p-network with Node.js",
+  "name": "P2P-network-with-Node.js",
   "version": "1.0.0",
   "description": "A simple peer-to-peer service",
   "main": "src/index.js",
