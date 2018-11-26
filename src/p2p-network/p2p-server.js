@@ -303,18 +303,23 @@ class P2PServer {
   /* ------------------------ Socket-message handler ------------------------ */
 
   messageHandler(socket) {
-    /* Handles incoming messages sent by the given socket according to type */
+    /*
+    Handles incoming messages sent by the given socket according to type
+    */
 
     socket.on("message", json_data => {
       const data = JSON.parse(json_data);
 
       switch (data.type) {
         case "TARGET":
-          /* Indicates incoming websocket-connection form newly-connected node */
+          /*
+          Indicates incoming websocket-connection form newly-connected node
+          */
           console.log(
-            `\n * New websocket from ${data.remote_URL}\n\n   node: ${
-              data.remote_UUID
-            }`
+            `\n * New websocket from ${data.remote_URL.replace(
+              "ws://",
+              ""
+            )}\n\n   node: ${data.remote_UUID}`
           );
 
           this.loadPeersDatabase(() => {
@@ -389,7 +394,9 @@ class P2PServer {
           break;
 
         case "NO_TARGET":
-          /* Indicates re-connection of already registered node without target */
+          /*
+          Indicates re-connection of already registered node without target
+          */
           console.log("\n * Registered node re-connected to network");
           this.send_PEERS_DATABASE(socket);
           this.sockets.push({
@@ -422,7 +429,9 @@ class P2PServer {
           break;
 
         case "NEW":
-          /* Indicates broadcasting of newly-registered peer */
+          /*
+          Indicates broadcasting of newly-registered peer
+          */
 
           // Store new peer to the database
           this.updatePeersDatabase([data.peer], () => {
@@ -438,7 +447,9 @@ class P2PServer {
           break;
 
         case "RECONNECTED":
-          /* Indicates broadcasting of re-connected peer */
+          /*
+          Indicates broadcasting of re-connected peer
+          */
 
           console.log("\n * Registered node re-connected to network");
 
@@ -447,7 +458,9 @@ class P2PServer {
           break;
 
         case "ADMITTANCE":
-          /* Indicates websocket from indirectly notified node */
+          /*
+          Indicates websocket from indirectly notified node
+          */
 
           console.log(
             `\n * Connection admitted from peer ${
@@ -457,9 +470,11 @@ class P2PServer {
           this.sockets.push({ UUID: data.remote_UUID, socket: socket });
           break;
 
-        /* Indicates message reception from online peer (not to be confused
-        with the general notion of socket message handled by this function) */
         case "MESSAGE":
+          /*
+          Indicates message reception from online peer (not to be confused
+          with the general notion of socket message handled by this function)
+          */
           this.receivedMessages.unshift({
             sender: data.sender,
             message: data.message
