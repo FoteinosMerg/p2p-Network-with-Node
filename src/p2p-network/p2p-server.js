@@ -150,6 +150,9 @@ class P2PServer {
   /* ----------------------- Database functionalities ----------------------- */
 
   createPeersDatabase(data, callback) {
+    /*
+    Create db dir for the node running this server and save db as .json therein
+    */
     fs.mkdir(`./databases/${this.UUID}`, err => {
       if (err) throw err;
       writeOnDatabase(`./databases/${this.UUID}/peers.json`, data, callback);
@@ -158,6 +161,8 @@ class P2PServer {
 
   loadPeersDatabase(callback) {
     /*
+    Read the db .json file and load content to `this.peers`
+
     NOTE: Callback should always be `() => setTimeout(..., 1000)` for actions
           involving the (re-)loaded peers database `this.peers`
     */
@@ -168,6 +173,9 @@ class P2PServer {
   }
 
   updatePeersDatabase(data, callback) {
+    /*
+    Append new data to the db .json file
+    */
     this.loadPeersDatabase(() => {
       setTimeout(() => {
         // Store non recorded entries to database
