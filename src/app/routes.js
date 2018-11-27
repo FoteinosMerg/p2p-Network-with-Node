@@ -47,7 +47,7 @@ router.post("/send", (req, res) => {
     const response = p2pServer.send_MESSAGE(recipient_URL, message);
 
     if (response == "SUCCESS") {
-      console.log("\n * Message successfully sent");
+      console.log(`\n * Message successfully sent to peer ${recipient_URL}`);
     }
     if (response == "NOT_ONLINE") {
       console.log(

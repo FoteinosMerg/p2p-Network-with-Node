@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 
-function writeOnDatabase(path, data, callback) {
+function write_on_database(path, data, callback) {
   fs.writeFile(path, JSON.stringify(data, null, "\t", "utf8"), err => {
     if (err) throw err;
     callback();
@@ -27,7 +27,7 @@ function extract_ADDRESS_and_PORT(URL) {
   return ADDRESS_PORT.split(":");
 }
 
-function checkActivity(URL, callback) {
+function check_activity(URL, callback) {
   /* Checks if the given URL is currently run by some remote server by ordering
   a testing-server to try to listen to it. If yes, then applies callback to
   the given URL */
@@ -46,4 +46,4 @@ function checkActivity(URL, callback) {
   server.listen(PORT, ADDRESS);
 }
 
-module.exports = { writeOnDatabase, checkActivity };
+module.exports = { write_on_database, check_activity };

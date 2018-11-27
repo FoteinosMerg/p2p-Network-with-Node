@@ -5,7 +5,7 @@ const fs = require("fs");
 const uuid3 = require("uuid/v3");
 
 const { ADDRESS, P2P_PORT, TARGET_PEER } = require("../config");
-const { writeOnDatabase, checkActivity } = require("./utils");
+const { write_on_database, check_activity } = require("./utils");
 
 class P2PServer {
   constructor() {
@@ -116,7 +116,7 @@ class P2PServer {
       setTimeout(
         () =>
           this.peers.forEach(peer => {
-            checkActivity(peer.URL, URL => {
+            check_activity(peer.URL, URL => {
               if (URL !== this.URL) {
                 const socket = new ws(URL);
                 socket.on("open", () => {
@@ -139,7 +139,7 @@ class P2PServer {
     /*
     Throws socket to broadcasted newly-connected peer (both newly-registered or re-connected)
     */
-    checkActivity(peer.URL, URL => {
+    check_activity(peer.URL, URL => {
       const socket = new ws(URL);
       socket.on("open", () => {
         this.messageHandler(socket);
@@ -157,7 +157,7 @@ class P2PServer {
     */
     fs.mkdir(`./databases/${this.UUID}`, err => {
       if (err) throw err;
-      writeOnDatabase(`./databases/${this.UUID}/peers.json`, data, callback);
+      write_on_database(`./databases/${this.UUID}/peers.json`, data, callback);
     });
   }
 
@@ -188,7 +188,7 @@ class P2PServer {
         });
 
         // Save updates in db file
-        writeOnDatabase(
+        write_on_database(
           `./databases/${this.UUID}/peers.json`,
           this.peers,
           callback
@@ -391,7 +391,7 @@ class P2PServer {
                         // Socket from newly-registered node must be stored but now, so that it is not taken
                         // into account as open during the broadcasting (this could possibly lead the newly
                         // registered node's server to crash, since the corresponding database might not
-                        // ywt have been created)
+                        // yet have been created)
                         this.sockets.push({
                           UUID: data.remote_UUID,
                           socket: socket
