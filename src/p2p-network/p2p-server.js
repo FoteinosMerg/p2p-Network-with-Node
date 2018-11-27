@@ -30,7 +30,7 @@ class P2PServer {
     this.sentMessages = [];
   }
 
-  /* ---------------------- Connection functionalitites --------------------- */
+  /* ---------------------- Connection functionalities --------------------- */
 
   listen() {
     /*
@@ -139,11 +139,13 @@ class P2PServer {
     /*
     Throws socket to newly-connected peer (both newly-registered or re-connected)
     */
-    const _socket = new ws(peer.URL);
-    _socket.on("open", () => {
-      this.messageHandler(_socket);
-      this.sockets.push({ UUID: peer.UUID, socket: _socket });
-      this.send_CONNECTION("ADMITTANCE", _socket);
+    checkActivity(peer.URL, URL => {
+      const socket = new ws(URL);
+      socket.on("open", () => {
+        this.messageHandler(socket);
+        this.sockets.push({ UUID: peer.UUID, socket: socket });
+        this.send_CONNECTION("ADMITTANCE", socket);
+      });
     });
   }
 
