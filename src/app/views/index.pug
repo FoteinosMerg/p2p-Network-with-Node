@@ -50,13 +50,13 @@ html(lang='en')
       $("#send_button").click(function() {
       // POST request configuration
       const url = URL + "messages/send";
-      const recipientURL = document.getElementById("recipient_holder").value;
+      const recipient_URL = document.getElementById("recipient_holder").value;
       const message = document.getElementById("message_holder").value;
       $.ajax({
       url: url,
       type: "POST",
       data: {
-      recipientURL: recipientURL,
+      recipient_URL: recipient_URL,
       message: message
       },
       success: function(result) {

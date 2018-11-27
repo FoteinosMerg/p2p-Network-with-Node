@@ -33,15 +33,18 @@ router.get("/online", (req, res) => {
    @ description    Send message to peer
    @ access         Public */
 router.post("/send", (req, res) => {
-  const { recipientURL, message } = req.body;
+  const { recipient_URL, message } = req.body;
 
-  if (p2pServer.URL == "ws://" + recipientURL) {
+  if (
+    p2pServer.URL ==
+    "ws://" + recipient_URL.replace("localhost", "127.0.0.1")
+  ) {
     console.log("\n * SENDING FAILED: You cannnot send messages to yourself");
     res.send("FAILED_TO_DEPART");
   } else {
     /* Will be "SUCCESS", "NOT_ONLINE" or "NON_EXISTENT" according to whether the
-    recipient node is an online, not online or non registered peer respectively */
-    const response = p2pServer.send_MESSAGE("ws://" + recipientURL, message);
+    recipient node is an online, not online or non-registered peer respectively */
+    const response = p2pServer.send_MESSAGE(recipient_URL, message);
 
     if (response == "SUCCESS") {
       console.log("\n * Message successfully sent");

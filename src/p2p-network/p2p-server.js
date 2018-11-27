@@ -137,7 +137,7 @@ class P2PServer {
 
   connect_to_broadcasted_peer(peer) {
     /*
-    Throws socket to newly-connected peer (both newly-registered or re-connected)
+    Throws socket to broadcasted newly-connected peer (both newly-registered or re-connected)
     */
     checkActivity(peer.URL, URL => {
       const socket = new ws(URL);
@@ -228,7 +228,7 @@ class P2PServer {
     return onlinePeers;
   }
 
-  /* ------------------------ Socket message actions ------------------------ */
+  /* ------------------------ Socket-message actions ------------------------ */
 
   send_CONNECTION(type, socket) {
     /*
@@ -272,27 +272,29 @@ class P2PServer {
     );
   }
 
-  send_MESSAGE(recipientURL, message) {
+  send_MESSAGE(recipient_URL, message) {
     /*
     type: MESSAGE
     */
 
-    // RE-IMPLEMENT
-
-    // Replace "localhost" and retrieve UUID from URL
-    const recipient_URL = `${recipientURL}`.replace("localhost", "127.0.0.1");
-    const recipient_UUID = uuid3(recipient_URL, uuid3.URL);
+    // Add protocol, replace "localhost" and retrieve the recipient's UUID
+    const recipient_url = `${"ws://"}${recipient_URL}`.replace(
+      "localhost",
+      "127.0.0.1"
+    );
+    const recipient_UUID = uuid3(recipient_url, uuid3.URL);
 
     // Check the if the given URL corresponds to some registered peer
     if (this.peers.some(peer => peer.UUID === recipient_UUID)) {
-      // Detect socket corresponding to peer
-      const recipient = this.find_opensocket_by_URL(recipient_URL);
+      // Detect potentially open socket corresponding to peer
+      const socket = this.sockets.find(
+        x => x.UUID === recipient_UUID && x.socket.readyState == ws.OPEN
+      );
 
-      // Check if the socket is existent and open
-      if (!recipient) return "NOT_ONLINE";
+      if (!socket) return "NOT_ONLINE";
 
-      // Send message
-      recipient.socket.send(
+      // Send message via the open socket detected above
+      socket.socket.send(
         JSON.stringify({
           type: "MESSAGE",
           sender: this.URL,
@@ -302,7 +304,7 @@ class P2PServer {
 
       // Store message as sent
       this.sentMessages.unshift({
-        recipient: recipientURL,
+        recipient: recipient_url,
         message: message
       });
 
@@ -482,16 +484,20 @@ class P2PServer {
 
         case "MESSAGE":
           /*
-          Indicates message reception from online peer (not to be confused
-          with the general notion of socket message handled by this function)
+          Indicates message reception from peer (not to be confused with the notion
+          of socket-message handled by this function)
           */
+
           this.receivedMessages.unshift({
             sender: data.sender,
             message: data.message
           });
 
           console.log(
-            `\n * New message from ${data.sender}:\n\n   \"${data.message}\"`
+            `\n * New message from ${data.sender.replace(
+              "ws://",
+              ""
+            )}:\n\n   \"${data.message}\"`
           );
           break;
       }
