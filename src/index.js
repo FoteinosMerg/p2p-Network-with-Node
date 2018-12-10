@@ -47,7 +47,7 @@ app.use("/", require("./app/index"));
 // Bind client at HTTP_PORT (default: 5000) for front- to back-end communication
 app.listen(HTTP_PORT, ADDRESS, () => {
   // Launch app with default browser
-  // opn(`http://localhost:${HTTP_PORT}`);
+  opn(`http://localhost:${HTTP_PORT}`);
   console.log(
     `\n * Application server bound to http://${ADDRESS}:${HTTP_PORT}`
   );
