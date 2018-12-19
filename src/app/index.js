@@ -15,6 +15,7 @@ router.get("/", (req, res) => {
 });
 
 // Further routing
-router.use(["/peers", "/messages"], require("./routes"));
+router.use("/peers", require("./routes/peers"));
+router.use("/messages", require("./routes/messages"));
 
 module.exports = router;
